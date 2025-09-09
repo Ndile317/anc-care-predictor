@@ -1,7 +1,5 @@
-import streamlit as st
-import pandas as pd
+ import streamlit as st
 import numpy as np
-import os
 
 # Set page configuration
 st.set_page_config(
@@ -15,44 +13,30 @@ st.set_page_config(
 st.title("👶 ANC Care Gap Predictor")
 st.markdown("""
 This tool predicts the risk of incomplete antenatal care based on patient characteristics.
-It uses machine learning models trained on Zimbabwe MICS 2019 data.
+It uses research insights from Zimbabwe MICS 2019 data.
 """)
 
 # Sidebar for user inputs
-st.sidebar.header("Patient Information")
-
-# Input fields
-age = st.sidebar.slider("Age", 15, 49, 25, help="Mother's age in years")
-parity = st.sidebar.number_input("Number of births", 0, 15, 1, help="Total number of live births")
-late_initiator = st.sidebar.radio("First ANC visit after first trimester?", ["No", "Yes"], 
-                                 help="First visit after 13 weeks gestation")
-education = st.sidebar.selectbox("Education Level", 
-                                ["No formal education", "Primary", "Secondary", "Higher"], 
-                                help="Highest education level completed")
-insurance = st.sidebar.radio("Has health insurance?", ["No", "Yes"])
-ever_birth = st.sidebar.radio("Ever given birth?", ["No", "Yes"])
-marital_status = st.sidebar.selectbox("Marital Status", 
-                                     ["Married", "Living with partner", "Not in union"])
-
-# Map education levels to numeric values
-education_mapping = {
-    "No formal education": 0,
-    "Primary": 1,
-    "Secondary": 3,
-    "Higher": 8
-}
-
-# Map marital status to numeric values
-marital_mapping = {
-    "Married": 1,
-    "Living with partner": 2,
-    "Not in union": 3
-}
+with st.sidebar:
+    st.header("Patient Information")
+    
+    # Input fields
+    age = st.slider("Age", 15, 49, 25, help="Mother's age in years")
+    parity = st.number_input("Number of births", 0, 15, 1, help="Total number of live births")
+    late_initiator = st.radio("First ANC visit after first trimester?", ["No", "Yes"], 
+                             help="First visit after 13 weeks gestation")
+    education = st.selectbox("Education Level", 
+                            ["No formal education", "Primary", "Secondary", "Higher"], 
+                            help="Highest education level completed")
+    insurance = st.radio("Has health insurance?", ["No", "Yes"])
+    ever_birth = st.radio("Ever given birth?", ["No", "Yes"])
+    marital_status = st.selectbox("Marital Status", 
+                                 ["Married", "Living with partner", "Not in union"])
 
 # Simplified prediction function based on your research findings
-def predict_risk_simple(input_dict):
+def predict_risk_simple(age, parity, late_initiator, education, insurance, ever_birth, marital_status):
     """
-    Simplified prediction based on your research findings and SHAP analysis
+    Simplified prediction based on your research findings
     Base risk is 84.28% (from your data) with adjustments based on risk factors
     """
     # Base risk from your dataset
@@ -60,31 +44,31 @@ def predict_risk_simple(input_dict):
     
     # Apply adjustments based on your SHAP analysis
     # Late initiation (most important factor)
-    if input_dict['late_initiator'] == "Yes":
+    if late_initiator == "Yes":
         base_risk += 0.15
     
     # Education level
-    if input_dict['education'] in [0, 1]:  # No formal education or primary only
+    if education in ["No formal education", "Primary"]:
         base_risk += 0.08
-    elif input_dict['education'] >= 8:  # Higher education
+    elif education == "Higher":
         base_risk -= 0.10
     
     # Insurance status
-    if input_dict['insurance'] == "No":
+    if insurance == "No":
         base_risk += 0.06
     
     # Parity (number of births)
-    if input_dict['parity'] > 3:
-        base_risk += 0.03 * (input_dict['parity'] - 3)
+    if parity > 3:
+        base_risk += 0.03 * (parity - 3)
     
     # Marital status
-    if input_dict['marital_status'] == 3:  # Not in union
+    if marital_status == "Not in union":
         base_risk += 0.04
     
     # Age factor (younger mothers might have higher risk)
-    if input_dict['age'] < 20:
+    if age < 20:
         base_risk += 0.05
-    elif input_dict['age'] > 35:
+    elif age > 35:
         base_risk += 0.03
     
     # Ensure risk is between 0 and 1
@@ -92,19 +76,8 @@ def predict_risk_simple(input_dict):
 
 # Prediction button
 if st.sidebar.button("Predict Care Gap Risk"):
-    # Prepare input data
-    input_data = {
-        'age': age,
-        'parity': parity,
-        'late_initiator': late_initiator,
-        'education': education_mapping[education],
-        'insurance': insurance,
-        'ever_birth': ever_birth,
-        'marital_status': marital_mapping[marital_status]
-    }
-    
     # Get prediction
-    risk_score = predict_risk_simple(input_data)
+    risk_score = predict_risk_simple(age, parity, late_initiator, education, insurance, ever_birth, marital_status)
     
     # Display results
     col1, col2 = st.columns([1, 2])
@@ -114,13 +87,7 @@ if st.sidebar.button("Predict Care Gap Risk"):
         st.metric("Risk of Care Gap", f"{risk_score:.1%}")
         
         # Create a color-coded progress bar
-        if risk_score > 0.7:
-            color = "red"
-        elif risk_score > 0.4:
-            color = "orange"
-        else:
-            color = "green"
-        
+        progress_color = "red" if risk_score > 0.7 else "orange" if risk_score > 0.4 else "green"
         st.progress(risk_score)
         
         # Add color interpretation
@@ -166,26 +133,26 @@ if st.sidebar.button("Predict Care Gap Risk"):
         st.subheader("Key Risk Factors")
         factors = []
         
-        if input_data['late_initiator'] == "Yes":
+        if late_initiator == "Yes":
             factors.append("Late ANC initiation (first visit after 13 weeks)")
         
-        if input_data['education'] in [0, 1]:  # No formal education or primary only
+        if education in ["No formal education", "Primary"]:
             factors.append("Lower education level")
-        elif input_data['education'] >= 8:  # Higher education (protective factor)
+        elif education == "Higher":
             factors.append("Higher education (protective)")
         
-        if input_data['insurance'] == "No":
+        if insurance == "No":
             factors.append("No health insurance")
         
-        if input_data['parity'] > 3:
-            factors.append(f"High parity ({input_data['parity']} births)")
+        if parity > 3:
+            factors.append(f"High parity ({parity} births)")
         
-        if input_data['marital_status'] == 3:  # Not in union
+        if marital_status == "Not in union":
             factors.append("Not in a union")
         
-        if input_data['age'] < 20:
+        if age < 20:
             factors.append("Young maternal age (<20 years)")
-        elif input_data['age'] > 35:
+        elif age > 35:
             factors.append("Advanced maternal age (>35 years)")
         
         for factor in factors:
@@ -195,36 +162,31 @@ if st.sidebar.button("Predict Care Gap Risk"):
             st.info("No significant risk factors identified")
 
 # Information section
-st.sidebar.header("About")
-st.sidebar.info("""
-This tool predicts the risk of incomplete antenatal care based on machine learning models trained on Zimbabwe MICS 2019 data.
-
-**Top predictors:**
-1. Late ANC initiation
-2. Education level  
-3. Insurance status
-4. Number of births
-5. Marital status
-6. Maternal age
-""")
-
-# Add data source citation
-st.sidebar.header("Data Source")
-st.sidebar.info("""
-This tool is based on analysis of Zimbabwe Multiple Indicator Cluster Survey (MICS) 2019 data.
-
-**Research Findings:**
-- 84.28% of women had care gaps (missing ≥2 essential ANC components)
-- Late initiation was the strongest predictor of care gaps
-- Socioeconomic factors significantly influence ANC completion
-""")
+with st.sidebar:
+    st.header("About")
+    st.info("""
+    This tool predicts the risk of incomplete antenatal care based on research insights from Zimbabwe MICS 2019 data.
+    
+    **Top predictors:**
+    1. Late ANC initiation
+    2. Education level  
+    3. Insurance status
+    4. Number of births
+    5. Marital status
+    6. Maternal age
+    """)
+    
+    st.header("Data Source")
+    st.info("""
+    This tool is based on analysis of Zimbabwe Multiple Indicator Cluster Survey (MICS) 2019 data.
+    
+    **Research Findings:**
+    - 84.28% of women had care gaps (missing ≥2 essential ANC components)
+    - Late initiation was the strongest predictor of care gaps
+    - Socioeconomic factors significantly influence ANC completion
+    """)
 
 # Add footer
 st.markdown("---")
 st.markdown("**ANC Care Gap Predictor** | Developed for improving maternal health outcomes in Zimbabwe")
 st.markdown("Based on research using Zimbabwe MICS 2019 data")
-
-# Debug information (optional - can be removed in production)
-with st.expander("Debug Information"):
-    st.write("Current directory:", os.getcwd())
-    st.write("Files in directory:", os.listdir('.'))

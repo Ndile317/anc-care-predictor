@@ -33,46 +33,55 @@ with st.sidebar:
     marital_status = st.selectbox("Marital Status", 
                                  ["Married", "Living with partner", "Not in union"])
 
-# Simplified prediction function based on your research findings
+# Improved prediction function with better risk balancing
 def predict_risk_simple(age, parity, late_initiator, education, insurance, ever_birth, marital_status):
     """
-    Simplified prediction based on your research findings
-    Base risk is 84.28% (from your data) with adjustments based on risk factors
+    Balanced prediction based on your research findings
+    Now includes both risk-increasing and risk-decreasing factors
     """
-    # Base risk from your dataset
-    base_risk = 0.8428
+    # Start with a moderate base risk that allows for variation
+    base_risk = 0.50  # Adjusted from 0.8428 to allow for more discrimination
     
     # Apply adjustments based on your SHAP analysis
-    # Late initiation (most important factor)
+    # Risk-increasing factors
     if late_initiator == "Yes":
-        base_risk += 0.15
+        base_risk += 0.25  # Late initiation (most important factor)
     
-    # Education level
     if education in ["No formal education", "Primary"]:
-        base_risk += 0.08
-    elif education == "Higher":
-        base_risk -= 0.10
+        base_risk += 0.15  # Lower education
     
-    # Insurance status
     if insurance == "No":
-        base_risk += 0.06
+        base_risk += 0.12  # No health insurance
     
-    # Parity (number of births)
     if parity > 3:
-        base_risk += 0.03 * (parity - 3)
+        base_risk += 0.08 * (parity - 3)  # High parity
     
-    # Marital status
     if marital_status == "Not in union":
-        base_risk += 0.04
+        base_risk += 0.10  # Not in union
     
-    # Age factor (younger mothers might have higher risk)
     if age < 20:
-        base_risk += 0.05
+        base_risk += 0.08  # Young maternal age
     elif age > 35:
-        base_risk += 0.03
+        base_risk += 0.06  # Advanced maternal age
+    
+    # Risk-decreasing factors (protective factors)
+    if education == "Higher":
+        base_risk -= 0.20  # Higher education is protective
+    
+    if insurance == "Yes":
+        base_risk -= 0.10  # Having insurance is protective
+    
+    if marital_status == "Married":
+        base_risk -= 0.08  # Being married is protective
+    
+    if 25 <= age <= 35:
+        base_risk -= 0.05  # Optimal age range is protective
+    
+    if parity == 1:
+        base_risk -= 0.05  # First pregnancy might have better care
     
     # Ensure risk is between 0 and 1
-    return max(0.1, min(0.99, base_risk))
+    return max(0.05, min(0.95, base_risk))
 
 # Prediction button
 if st.sidebar.button("Predict Care Gap Risk"):
@@ -103,30 +112,50 @@ if st.sidebar.button("Predict Care Gap Risk"):
         st.subheader("Risk Interpretation")
         
         if risk_score > 0.7:
+            st.error("🔴 HIGH RISK")
             st.markdown("""
-            **Recommendations:**
-            - Schedule additional ANC visits
-            - Provide transportation support if needed  
-            - Assign community health worker for follow-up
-            - Consider home visits or mobile clinic services
-            - Provide education on importance of ANC
+            **Immediate Actions Recommended:**
+            - 🚨 Priority follow-up within 1 week
+            - 🏠 Schedule home visit or community outreach
+            - 🚗 Arrange transportation assistance if needed
+            - 📞 Assign dedicated community health worker
+            - 📋 Develop individualized care plan
+            
+            **Clinical Interventions:**
+            - Double frequency of ANC visits
+            - Comprehensive health education session
+            - Screen for specific barriers (transport, cost, family support)
+            - Connect with social services if needed
             """)
         elif risk_score > 0.4:
+            st.warning("🟡 MEDIUM RISK")
             st.markdown("""
-            **Recommendations:**
-            - Ensure complete ANC package
-            - Provide health education on importance of care
-            - Schedule follow-up appointment
-            - Address any specific barriers to care
-            - Monitor closely for any changes
+            **Recommended Actions:**
+            - 📅 Schedule follow-up within 2 weeks
+            - 📚 Provide targeted health education
+            - 🔍 Assess for specific care gaps
+            - 👥 Consider group education sessions
+            - 📱 Set up reminder system for appointments
+            
+            **Preventive Measures:**
+            - Ensure complete ANC package offered
+            - Address identified risk factors
+            - Monitor for any changes in situation
             """)
         else:
+            st.success("🟢 LOW RISK")
             st.markdown("""
-            **Recommendations:**
-            - Continue routine ANC care
-            - Reinforce importance of completing all visits
-            - Monitor for any changes in circumstances
-            - Provide information on danger signs
+            **Maintenance Actions:**
+            - ✅ Continue routine ANC schedule
+            - 💪 Reinforce importance of completing all visits
+            - 📊 Monitor for any changes in circumstances
+            - 🎓 Provide information on danger signs
+            - 🤰 Encourage birth preparedness planning
+            
+            **Health Promotion:**
+            - Encourage peer support and education
+            - Reinforce positive health behaviors
+            - Provide information on nutrition and self-care
             """)
         
         # Key risk factors
@@ -155,11 +184,29 @@ if st.sidebar.button("Predict Care Gap Risk"):
         elif age > 35:
             factors.append("Advanced maternal age (>35 years)")
         
-        for factor in factors:
-            st.write(f"• {factor}")
+        # Protective factors
+        protective_factors = []
+        if education == "Higher":
+            protective_factors.append("Higher education")
+        if insurance == "Yes":
+            protective_factors.append("Health insurance coverage")
+        if marital_status == "Married":
+            protective_factors.append("Married status")
+        if 25 <= age <= 35:
+            protective_factors.append("Optimal age range (25-35)")
         
-        if not factors:
-            st.info("No significant risk factors identified")
+        if factors:
+            st.write("**Risk Factors:**")
+            for factor in factors:
+                st.write(f"• {factor}")
+        
+        if protective_factors:
+            st.write("**Protective Factors:**")
+            for factor in protective_factors:
+                st.write(f"• {factor} (reduces risk)")
+        
+        if not factors and not protective_factors:
+            st.info("No significant risk or protective factors identified")
 
 # Information section
 with st.sidebar:

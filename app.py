@@ -11,6 +11,7 @@ from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 import plotly.graph_objects as go
 
+
 # Set page configuration
 st.set_page_config(
     page_title="ANC Care Gap Predictor",
@@ -334,3 +335,25 @@ st.sidebar.info("This tool is based on analysis of Zimbabwe Multiple Indicator C
 # Add footer
 st.markdown("---")
 st.markdown("**ANC Care Gap Predictor** | Developed for improving maternal health outcomes in Zimbabwe")
+
+# Replace the Plotly gauge with a Streamlit progress bar
+st.subheader("Prediction Results")
+st.metric("Risk of Care Gap", f"{risk_score:.1%}")
+
+# Create a color-coded progress bar
+if risk_score > 0.7:
+    color = "red"
+elif risk_score > 0.4:
+    color = "orange"
+else:
+    color = "green"
+
+st.progress(risk_score)
+
+# Add color interpretation
+if risk_score > 0.7:
+    st.error("🔴 HIGH RISK")
+elif risk_score > 0.4:
+    st.warning("🟡 MEDIUM RISK")
+else:
+    st.success("🟢 LOW RISK")

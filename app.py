@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
-import pyreadstat
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import ColumnTransformer
@@ -51,46 +50,43 @@ marital_mapping = {
     "Not in union": 3
 }
 
-# Load or train model function
+# Load model and preprocessor
 @st.cache_resource
-def load_model():
+def load_model_and_preprocessor():
     try:
-        # Load your data and train model here
-        # This is a simplified version - you'll need to implement your actual training logic
-        model = GradientBoostingClassifier(n_estimators=100, random_state=42)
-        # Add your training code here
-        return model
+        model = joblib.load('best_model.joblib')
+        preprocessor = joblib.load('preprocessor.joblib')
+        return model, preprocessor
     except Exception as e:
-        st.error(f"Error loading model: {str(e)}")
-        return None
+        st.error(f"Error loading model or preprocessor: {str(e)}")
+        return None, None
 
-model = load_model()
+model, preprocessor = load_model_and_preprocessor()
+
+if model is None or preprocessor is None:
+    st.stop()
 
 # Prediction function
 def predict_risk(input_dict):
     try:
-        # This is a simplified prediction function
-        # Replace with your actual prediction logic
-        base_risk = 0.84  # Base rate from your data
+        # Prepare input data for the model
+        input_df = pd.DataFrame([{
+            'WB4': input_dict['age'],
+            'CM11': input_dict['parity'],
+            'LateInitiator': 1 if input_dict['late_initiator'] == "Yes" else 0,
+            'WB6A': input_dict['education'],
+            'WB18': 1 if input_dict['insurance'] == "Yes" else 2,
+            'CM1': 1 if input_dict['ever_birth'] == "Yes" else 2,
+            'MA1': input_dict['marital_status']
+        }])
         
-        # Apply adjustments based on your SHAP analysis
-        if input_dict['late_initiator'] == "Yes":
-            base_risk += 0.10
+        # Preprocess input
+        processed_input = preprocessor.transform(input_df)
         
-        if input_dict['education'] in [0, 1]:  # No formal education or primary only
-            base_risk += 0.08
+        # Make prediction
+        risk_score = model.predict_proba(processed_input)[0][1]
         
-        if input_dict['insurance'] == "No":
-            base_risk += 0.06
-        
-        if input_dict['parity'] > 3:
-            base_risk += 0.03 * (input_dict['parity'] - 3)
-        
-        if input_dict['marital_status'] == 3:  # Not in union
-            base_risk += 0.04
-        
-        # Ensure risk is between 0 and 1
-        return max(0.1, min(0.99, base_risk))
+        return risk_score
     except Exception as e:
         st.error(f"Error in prediction: {str(e)}")
         return 0.5  # Default value
